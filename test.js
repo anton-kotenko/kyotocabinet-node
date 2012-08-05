@@ -1,10 +1,10 @@
 kc = require('./kyotonode.node');
 db = new kc.N12kyotocabinet6PolyDBE();
-console.log(db.open('/tmp/db.kch', db.OCREATE | db.OWRITER));
+console.log(db.open('/tmp/db.kch', db.OpenMode.OCREATE | db.OpenMode.OWRITER));
 console.log('size:', db.size());
 console.log('count:', db.count());
 console.log('path:', db.path());
-
+console.log("set qaz", db.set('qaz', 'mkjuhu'));
 console.log("append zzz:", db.append('zzz', 'asdfasdf'));
 console.log('check zzz:', db.check('zzz'));
 console.log('check qqq:', db.check('qqq'));
@@ -23,3 +23,8 @@ console.log('remove bulk', db.remove_bulk([
   'aaa', 'ccc'
 ]));
 console.log('get bulk', db.get_bulk(['eee', 'aaaa']));
+console.log('status', db.status());
+console.log('copy', db.copy('/tmp/copy.kch', function () {
+  console.log("progress");
+}));
+console.error("after copy");
