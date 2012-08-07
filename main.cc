@@ -1,4 +1,5 @@
 #include<node.h>
+#include<node_version.h>
 #include<v8.h>
 #include<map>
 #include<string>
@@ -44,7 +45,7 @@
 
 template<class T> class ExportToV8: public node::ObjectWrap {
  public:     
-  static void Init(v8::Handle<v8::Object> target);
+  static void Init(v8::Handle<v8::Object> target, const char * exportName);
   static v8::Handle<v8::Value> New(const v8::Arguments & args); 
   static void setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl);
   static v8::Handle<v8::Value> open(const v8::Arguments & args);
@@ -68,74 +69,79 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> get_bulk(const v8::Arguments & args);
   static v8::Handle<v8::Value> status(const v8::Arguments & args);
   static v8::Handle<v8::Value> copy(const v8::Arguments & args);
+  static v8::Handle<v8::Value> begin_transaction(const v8::Arguments & args);
+  static v8::Handle<v8::Value> begin_transaction_try(const v8::Arguments & args);
+  static v8::Handle<v8::Value> end_transaction(const v8::Arguments & args);
+  static v8::Handle<v8::Value> error(const v8::Arguments & args);
   ExportToV8();
  private:
   T * db;
 };
 class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
  private:
-  v8::Local<v8::Function> callback;
-  v8::Handle<v8::Object> ctx;
+  v8::Persistent<v8::Object> callback;
  public:
-  standartProgressChecker(v8::Handle<v8::Object> ctx, v8::Local<v8::Function> callback) {
-    this->callback = callback;
-    this->ctx = ctx;
+  standartProgressChecker(v8::Handle<v8::Object> _callback):callback(_callback) {
+   // std::cerr<<"progress checker constructor thread:"<<gettid()<<std::endl;
   }
   bool check(const char * name, const char * message, int64_t curcnt, int64_t allcnt) {
+    //sleep(10000);
     std::cerr<<"name: "<<name<<std::endl<<"message: "<<message<<std::endl<<"curcnt: "<<curcnt<<", allcnt: "<<allcnt<<std::endl;
-   // v8::HandleScope scope;
+    //std::cerr<<"progress checker checker thread:"<<gettid()<<std::endl;
+    v8::HandleScope scope;
     //v8::Local<v8::Object> ctx  = v8::Object::New();
-    //this->callback->Call(ctx, 0,  NULL);
+    v8::Function::Cast(*(this->callback->Get(v8::String::New("cb"))))->Call(this->callback, 0,  NULL);
     return true;
   }
   ~standartProgressChecker() {
   } 
 };
-class ExportPolyDb : public ExportToV8<kyotocabinet::PolyDB> {
+class ExportPolyDB : public ExportToV8<kyotocabinet::PolyDB> {
 };
-class ExportHashDb: public ExportToV8<kyotocabinet::HashDB> {
+class ExportHashDB: public ExportToV8<kyotocabinet::HashDB> {
 };
-class ExportTreeDb: public ExportToV8<kyotocabinet::TreeDB> {
+class ExportTreeDB: public ExportToV8<kyotocabinet::TreeDB> {
 };
-class ExportDirDb: public ExportToV8<kyotocabinet::DirDB> {
+class ExportDirDB: public ExportToV8<kyotocabinet::DirDB> {
 };
-class ExportForestDb: public ExportToV8<kyotocabinet::ForestDB> {
+class ExportForestDB: public ExportToV8<kyotocabinet::ForestDB> {
 };
-class ExportTextDb: public ExportToV8<kyotocabinet::TextDB> {
+class ExportTextDB: public ExportToV8<kyotocabinet::TextDB> {
 };
-class ExportProtoHashDb: public ExportToV8<kyotocabinet::ProtoHashDB> {
+class ExportProtoHashDB: public ExportToV8<kyotocabinet::ProtoHashDB> {
 };
-class ExportProtoTreeDb: public ExportToV8<kyotocabinet::ProtoTreeDB> {
+class ExportProtoTreeDB: public ExportToV8<kyotocabinet::ProtoTreeDB> {
 };
-class ExportStashDb: public ExportToV8<kyotocabinet::StashDB> {
+class ExportStashDB: public ExportToV8<kyotocabinet::StashDB> {
 };
-class ExportCacheDb: public ExportToV8<kyotocabinet::CacheDB> {
+class ExportCacheDB: public ExportToV8<kyotocabinet::CacheDB> {
 };
-class ExportGrassDb: public ExportToV8<kyotocabinet::GrassDB> {
+class ExportGrassDB: public ExportToV8<kyotocabinet::GrassDB> {
 };
+#define EXPORT_TO_NODE(target, type) Export##type::Init(target, #type);
 extern "C" {
 void init (v8::Handle<v8::Object> target) {
-  ExportPolyDb::Init(target);
-  ExportHashDb::Init(target);
-  ExportTreeDb::Init(target);
-  ExportDirDb::Init(target);
-  ExportForestDb::Init(target);
-  ExportTextDb::Init(target);
-  ExportProtoHashDb::Init(target);
-  ExportProtoTreeDb::Init(target);
-  ExportStashDb::Init(target);
-  ExportCacheDb::Init(target);
-  ExportGrassDb::Init(target);
+  EXPORT_TO_NODE(target, PolyDB);
+  EXPORT_TO_NODE(target, HashDB);
+  EXPORT_TO_NODE(target, TreeDB);
+  EXPORT_TO_NODE(target, DirDB);
+  EXPORT_TO_NODE(target, ForestDB);
+  EXPORT_TO_NODE(target, TextDB);
+  EXPORT_TO_NODE(target, ProtoHashDB);
+  EXPORT_TO_NODE(target, ProtoTreeDB);
+  EXPORT_TO_NODE(target, StashDB);
+  EXPORT_TO_NODE(target, CacheDB);
+  EXPORT_TO_NODE(target, GrassDB);
 }
 }
 NODE_MODULE(kyotonode, init);
-template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target) { 
+template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target, const char * exportName) { 
   v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(ExportToV8<T>::New);
-  tpl->SetClassName(v8::String::NewSymbol(typeid(T).name()));
+  tpl->SetClassName(v8::String::NewSymbol(exportName));
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   ExportToV8<T>::setDefaultPrototype(tpl);  
   v8::Persistent<v8::Function> constructor = v8::Persistent<v8::Function>::New(tpl->GetFunction());
-  target->Set(v8::String::NewSymbol(typeid(T).name()), constructor);
+  target->Set(v8::String::NewSymbol(exportName), constructor);
 };
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments & args) {
   ExportToV8<T> * instance = new ExportToV8<T>();
@@ -147,27 +153,33 @@ template <class T> ExportToV8<T>::ExportToV8(){
 }
 template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl){
   v8::HandleScope scope;
-  node::SetPrototypeMethod(tpl, "open", ExportToV8<T>::open);
-  node::SetPrototypeMethod(tpl, "close", ExportToV8<T>::close);
-  node::SetPrototypeMethod(tpl, "size", ExportToV8<T>::size);
-  node::SetPrototypeMethod(tpl, "count", ExportToV8<T>::count);
-  node::SetPrototypeMethod(tpl, "path", ExportToV8<T>::path);
-  node::SetPrototypeMethod(tpl, "clear", ExportToV8<T>::clear);
-  node::SetPrototypeMethod(tpl, "get", ExportToV8<T>::get);
-  node::SetPrototypeMethod(tpl, "set", ExportToV8<T>::set);
-  node::SetPrototypeMethod(tpl, "add", ExportToV8<T>::add);
-  node::SetPrototypeMethod(tpl, "replace", ExportToV8<T>::replace);
-  node::SetPrototypeMethod(tpl, "remove", ExportToV8<T>::remove);
-  node::SetPrototypeMethod(tpl, "check", ExportToV8<T>::check);
-  node::SetPrototypeMethod(tpl, "seize", ExportToV8<T>::seize);
-  node::SetPrototypeMethod(tpl, "cas", ExportToV8<T>::cas);
-  node::SetPrototypeMethod(tpl, "increment", ExportToV8<T>::increment);
-  node::SetPrototypeMethod(tpl, "append", ExportToV8<T>::append);
-  node::SetPrototypeMethod(tpl, "set_bulk", ExportToV8<T>::set_bulk);
-  node::SetPrototypeMethod(tpl, "remove_bulk", ExportToV8<T>::remove_bulk);
-  node::SetPrototypeMethod(tpl, "get_bulk", ExportToV8<T>::get_bulk);
-  node::SetPrototypeMethod(tpl, "status", ExportToV8<T>::status);
-  node::SetPrototypeMethod(tpl, "copy", ExportToV8<T>::copy);
+  //use backward compatible method to populate prototype 
+  //instead of node::SetPrototypeMetod
+  NODE_SET_PROTOTYPE_METHOD(tpl, "open", ExportToV8<T>::open);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "close", ExportToV8<T>::close);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "size", ExportToV8<T>::size);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "count", ExportToV8<T>::count);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "path", ExportToV8<T>::path);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "clear", ExportToV8<T>::clear);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "get", ExportToV8<T>::get);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "set", ExportToV8<T>::set);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "add", ExportToV8<T>::add);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "replace", ExportToV8<T>::replace);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "remove", ExportToV8<T>::remove);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "check", ExportToV8<T>::check);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "seize", ExportToV8<T>::seize);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "cas", ExportToV8<T>::cas);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "increment", ExportToV8<T>::increment);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "append", ExportToV8<T>::append);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "set_bulk", ExportToV8<T>::set_bulk);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "remove_bulk", ExportToV8<T>::remove_bulk);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "get_bulk", ExportToV8<T>::get_bulk);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "status", ExportToV8<T>::status);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "begin_transaction", ExportToV8<T>::begin_transaction);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "begin_transaction_try", ExportToV8<T>::begin_transaction_try);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "end_transaction", ExportToV8<T>::end_transaction);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "error", ExportToV8<T>::error);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "copy", ExportToV8<T>::copy);
   v8::Local<v8::Object> OpenMode = v8::Object::New();
   OpenMode->Set(v8::String::New("OREADER"), v8::Int32::New(T::OREADER));
   OpenMode->Set(v8::String::New("OWRITER"), v8::Int32::New(T::OWRITER));
@@ -179,6 +191,19 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   OpenMode->Set(v8::String::New("OTRYLOCK"), v8::Int32::New(T::OTRYLOCK));
   OpenMode->Set(v8::String::New("ONOREPAIR"), v8::Int32::New(T::ONOREPAIR));
   tpl->PrototypeTemplate()->Set(v8::String::New("OpenMode"), OpenMode);
+  v8::Local<v8::Object> ErrorCode = v8::Object::New();
+  ErrorCode->Set(v8::String::New("SUCCESS"), v8::Int32::New(T::Error::SUCCESS));
+  ErrorCode->Set(v8::String::New("NOIMPL"), v8::Int32::New(T::Error::NOIMPL));
+  ErrorCode->Set(v8::String::New("INVALID"), v8::Int32::New(T::Error::INVALID));
+  ErrorCode->Set(v8::String::New("NOREPOS"), v8::Int32::New(T::Error::NOREPOS));
+  ErrorCode->Set(v8::String::New("NOPERM"), v8::Int32::New(T::Error::NOPERM));
+  ErrorCode->Set(v8::String::New("BROKEN"), v8::Int32::New(T::Error::BROKEN));
+  ErrorCode->Set(v8::String::New("NOREC"), v8::Int32::New(T::Error::NOREC));
+  ErrorCode->Set(v8::String::New("DUPREC"), v8::Int32::New(T::Error::DUPREC));
+  ErrorCode->Set(v8::String::New("LOGIC"), v8::Int32::New(T::Error::LOGIC));
+  ErrorCode->Set(v8::String::New("SYSTEM"), v8::Int32::New(T::Error::SYSTEM));
+  ErrorCode->Set(v8::String::New("MISC"), v8::Int32::New(T::Error::MISC));
+  tpl->PrototypeTemplate()->Set(v8::String::New("ErrorCode"), ErrorCode);
 }
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::open(const v8::Arguments & args) {
   std::string path;
@@ -382,11 +407,43 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::copy(const v8::Arguments
   std::string path;
   ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
   v8::HandleScope scope;
-  if(args[1]->IsFunction()) {
-    std::cerr<<"arg 1 is function"<<std::endl;
-  }
-  v8::Local<v8::Function> callback;
-  callback->Call(args.This(), 0,NULL);
-  standartProgressChecker checker(args.This(), callback);
+  v8::Local<v8::Object> callback = args[1]->ToObject();
+  standartProgressChecker checker(callback);
+  REQUIRE_STRING(args, 0, path, "copy requires first argument to be string")
   return scope.Close(v8::Boolean::New(instance->db->copy(path, &checker)));
+}
+template <class T> v8::Handle<v8::Value> ExportToV8<T>::begin_transaction(const v8::Arguments & args) {
+  bool hard = false;
+  if (args.Length() > 0) {
+    REQUIRE_BOOLEAN(args, 0, hard, "begin_transaction requires first argument to be boolean");
+  }
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  return v8::Boolean::New(instance->db->begin_transaction(hard));
+}
+
+template <class T> v8::Handle<v8::Value> ExportToV8<T>::begin_transaction_try(const v8::Arguments & args) {
+  bool hard = false;
+  if (args.Length() > 0) {
+    REQUIRE_BOOLEAN(args, 0, hard, "begin_transaction_try requires first argument to be boolean");
+  }
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  return v8::Boolean::New(instance->db->begin_transaction_try(hard));
+}
+
+template <class T> v8::Handle<v8::Value> ExportToV8<T>::end_transaction(const v8::Arguments & args) {
+  bool commit = true;
+  if (args.Length() > 0) {
+    REQUIRE_BOOLEAN(args, 0, commit, "end_transaction requires first argument to be boolean");
+  }
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  return v8::Boolean::New(instance->db->end_transaction(commit));
+}
+template <class T> v8::Handle<v8::Value> ExportToV8<T>::error(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  typename T::Error kcError = instance->db->error();
+  v8::Local<v8::Object> v8Error = v8::Object::Cast(*v8::Exception::Error(v8::String::New(kcError.message())));
+  v8Error->Set(v8::String::New("name"), v8::String::New(kcError.name()));
+  v8Error->Set(v8::String::New("code"), v8::Int32::New(kcError.code()));
+  return scope.Close(v8Error);
 }
