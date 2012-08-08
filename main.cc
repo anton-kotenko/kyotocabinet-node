@@ -42,10 +42,17 @@
     return v8::ThrowException(v8::Exception::TypeError(v8::String::New(message)));\
   dst = v8::Array::Cast(*argv[num]);\
 } while(0);
+#define REQUIRE_INT8(argv, num, dst,  message)  do {\
+  if (argv.Length()<=num || !argv[num]->IsInt32())\
+    return v8::ThrowException(v8::Exception::TypeError(v8::String::New(message)));\
+  dst = static_cast<int8_t>(argv[num]->Int32Value());\
+} while(0);
 
 template<class T> class ExportToV8: public node::ObjectWrap {
  public:     
   static void Init(v8::Handle<v8::Object> target, const char * exportName);
+  static void  ExportTemplate(v8::Handle<v8::Object> target, v8::Handle<v8::FunctionTemplate> tpl, const char * exportName);
+  static v8::Local<v8::FunctionTemplate> PrepareObjectTemlate(const char * exportName);
   static v8::Handle<v8::Value> New(const v8::Arguments & args); 
   static void setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl);
   static v8::Handle<v8::Value> open(const v8::Arguments & args);
@@ -74,7 +81,7 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> end_transaction(const v8::Arguments & args);
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
   ExportToV8();
- private:
+ protected:
   T * db;
 };
 class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
@@ -99,6 +106,15 @@ class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
 class ExportPolyDB : public ExportToV8<kyotocabinet::PolyDB> {
 };
 class ExportHashDB: public ExportToV8<kyotocabinet::HashDB> {
+ public:
+  static void Init(v8::Handle<v8::Object> target, const char * exportName);
+  static void setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl);
+  static v8::Handle<v8::Value> tune_alignment(const v8::Arguments & args);
+  static v8::Handle<v8::Value> tune_fbp(const v8::Arguments & args);
+  static v8::Handle<v8::Value> tune_options(const v8::Arguments & args);
+  static v8::Handle<v8::Value> tune_map(const v8::Arguments & args);
+  static v8::Handle<v8::Value> tune_buckets(const v8::Arguments & args);
+  static v8::Handle<v8::Value> tune_defrag(const v8::Arguments & args);
 };
 class ExportTreeDB: public ExportToV8<kyotocabinet::TreeDB> {
 };
@@ -135,13 +151,22 @@ void init (v8::Handle<v8::Object> target) {
 }
 }
 NODE_MODULE(kyotonode, init);
-template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target, const char * exportName) { 
+template <class T> v8::Local<v8::FunctionTemplate> ExportToV8<T>::PrepareObjectTemlate(const char * exportName) {
+  v8::HandleScope scope;
   v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(ExportToV8<T>::New);
   tpl->SetClassName(v8::String::NewSymbol(exportName));
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   ExportToV8<T>::setDefaultPrototype(tpl);  
+  return scope.Close(tpl);
+}
+template <class T> void  ExportToV8<T>::ExportTemplate(v8::Handle<v8::Object> target, v8::Handle<v8::FunctionTemplate> tpl, const char * exportName) {
   v8::Persistent<v8::Function> constructor = v8::Persistent<v8::Function>::New(tpl->GetFunction());
   target->Set(v8::String::NewSymbol(exportName), constructor);
+}
+template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target, const char * exportName) {
+  v8::HandleScope scope;
+  v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
+  ExportTemplate(target, tpl, exportName); 
 };
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments & args) {
   ExportToV8<T> * instance = new ExportToV8<T>();
@@ -446,4 +471,63 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::error(const v8::Argument
   v8Error->Set(v8::String::New("name"), v8::String::New(kcError.name()));
   v8Error->Set(v8::String::New("code"), v8::Int32::New(kcError.code()));
   return scope.Close(v8Error);
+}
+void ExportHashDB::Init(v8::Handle<v8::Object> target, const char * exportName){
+  v8::HandleScope scope;
+  v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
+  setCustomPrototype(tpl);
+  ExportTemplate(target, tpl, exportName);  
+}
+void ExportHashDB::setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl){
+  v8::HandleScope scope;
+  std::cerr<<"HashDB set prototype"<<std::endl;
+  //use backward compatible method to populate prototype 
+  //instead of node::SetPrototypeMetod
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_alignment", ExportHashDB::tune_alignment);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_fbp", ExportHashDB::tune_fbp);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_options", ExportHashDB::tune_options);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_buckets", ExportHashDB::tune_buckets);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_map", ExportHashDB::tune_map);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_defrag", ExportHashDB::tune_defrag);
+  v8::Local<v8::Object> Option = v8::Object::New();
+  Option->Set(v8::String::New("TSMALL"), v8::Int32::New(kyotocabinet::HashDB::TSMALL));
+  Option->Set(v8::String::New("TLINEAR"), v8::Int32::New(kyotocabinet::HashDB::TLINEAR));
+  Option->Set(v8::String::New("TCOMPRESS"), v8::Int32::New(kyotocabinet::HashDB::TCOMPRESS));
+  tpl->PrototypeTemplate()->Set(v8::String::New("Option"), Option);
+} 
+v8::Handle<v8::Value> ExportHashDB::tune_alignment(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int8_t apow; 
+  REQUIRE_INT8(args, 0, apow, "tune_alignment requires first argument to be 8 bit integer")  
+  return v8::Boolean::New(instance->db->tune_alignment(apow));
+}
+v8::Handle<v8::Value> ExportHashDB::tune_fbp(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int8_t fpow; 
+  REQUIRE_INT8(args, 0, fpow, "tune_fbp requires first argument to be 8 bit integer")  
+  return v8::Boolean::New(instance->db->tune_fbp(fpow));
+}
+v8::Handle<v8::Value> ExportHashDB::tune_options(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int8_t opts; 
+  REQUIRE_INT8(args, 0, opts, "tune_options requires first argument to be 8 bit integer")  
+  return v8::Boolean::New(instance->db->tune_options(opts));
+}
+v8::Handle<v8::Value> ExportHashDB::tune_buckets(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int64_t bnum; 
+  REQUIRE_INT64(args, 0, bnum , "tune_buckets requires first argument to be 64 bit integer")  
+  return v8::Boolean::New(instance->db->tune_buckets(bnum));
+}
+v8::Handle<v8::Value> ExportHashDB::tune_map(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int64_t msiz; 
+  REQUIRE_INT64(args, 0, msiz , "tune_map requires first argument to be 64 bit integer")  
+  return v8::Boolean::New(instance->db->tune_map(msiz));
+}
+v8::Handle<v8::Value> ExportHashDB::tune_defrag(const v8::Arguments & args){
+  ExportHashDB * instance = node::ObjectWrap::Unwrap<ExportHashDB>(args.This());
+  int64_t dfunit; 
+  REQUIRE_INT64(args, 0, dfunit , "tune_defrag requires first argument to be 64 bit integer")  
+  return v8::Boolean::New(instance->db->tune_defrag(dfunit));
 }
