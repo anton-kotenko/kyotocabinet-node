@@ -1,5 +1,5 @@
 CC=gcc
-INCLUDE_PATH= -I /usr/include/node -I /usr/include
+INCLUDE_PATH= -I /usr/include/node -I /usr/include -I /usr/include/nodejs
 LIBS_PATH= -L /usr/lib
 LIBS= -lv8 -lstdc++ -lkyotocabinet
 DEFINES=-D LARGEFILE_SOURCE -D FILE_OFFSET_BITS=64
