@@ -1,6 +1,8 @@
 kc = require('./kyotonode.node');
 db = new kc.PolyDB();
+db2 = new kc.PolyDB();
 console.log(db.open('/tmp/db.kch', db.OpenMode.OCREATE | db.OpenMode.OWRITER));
+console.log(db2.open('/tmp/db1.kch', db.OpenMode.OCREATE | db.OpenMode.OWRITER));
 console.log('size:', db.size());
 console.log('count:', db.count());
 console.log('path:', db.path());
@@ -22,15 +24,43 @@ console.log('set bulk', db.set_bulk({
 console.log('remove bulk', db.remove_bulk([
   'aaa', 'ccc'
 ]));
-console.log('get bulk', db.get_bulk(['eee', 'aaaa']));
-console.log('status', db.status());
-var cb = {};
-cb.cb = function () {
-  console.log("progress");
-};
-setTimeout(function () {
+//console.log('get bulk', db.get_bulk(['eee', 'aaaa']));
+//console.log('status', db.status());
+//var cb = {};
+//cb.cb = function () {
+//  console.log("progress");
+//};
+setInterval(function () {
   console.log("timeout");
 }, 1000);
-console.log('copy', db.copy('/tmp/copy.kch',cb));
+//for(var i = 0; i<1000000; i++) {
+//  db.set(i.toString(), Math.random().toString());
+//}
+//console.log('copy', db.copy('/tmp/copy.kch',cb));
 console.error("after copy");
 console.log("error:", db.error());
+process.on('SIGTSTP', function () {
+  console.log("terminal stop");
+})
+process.on('SIGKILL', function () {
+  console.log("sigkill");
+})
+
+process.on('SIGSTOP', function () {
+  console.log("sigstop");
+})
+
+process.on('SIGTERM', function () {
+  console.log("sigterm");
+})
+
+process.on('SIGHUP', function () {
+  console.log("sighup");
+})
+
+process.on('SIGINT', function () {
+  console.log("sigint");
+})
+process.on('exit', function () {
+  console.log("on exit");
+});

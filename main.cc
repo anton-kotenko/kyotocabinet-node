@@ -55,6 +55,8 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Local<v8::FunctionTemplate> PrepareObjectTemlate(const char * exportName);
   static v8::Handle<v8::Value> New(const v8::Arguments & args); 
   static void setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl);
+  static void cleanOnShutdown (void * args);
+  static void registerShutdownCallback();
   static v8::Handle<v8::Value> open(const v8::Arguments & args);
   static v8::Handle<v8::Value> close(const v8::Arguments & args);
   static v8::Handle<v8::Value> size(const v8::Arguments & args);
@@ -80,9 +82,46 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> begin_transaction_try(const v8::Arguments & args);
   static v8::Handle<v8::Value> end_transaction(const v8::Arguments & args);
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
-  ExportToV8();
  protected:
+  class databasesListNode {
+   private:
+    ExportToV8<T>::databasesListNode * next;
+    ExportToV8<T>::databasesListNode * prev;
+    ExportToV8<T> * item;
+   public:
+    ExportToV8<T>::databasesListNode * attachNew(ExportToV8<T> * _item){
+      if (this->next != NULL) {
+        return this->next->attachNew(_item);
+      } 
+      return this->next = new databasesListNode(this, _item);
+    }
+    ~databasesListNode() {
+      if (this->prev) {
+        this->prev->next = this->next;
+      }
+      if (this->next) {
+        this->next->prev = this;
+      }  
+    }
+    ExportToV8<T>::databasesListNode * getNext(){
+      return this->next;
+    }
+    void deleteContainedItem() {
+      if (this->item) {
+        delete this->item;
+        this->item = NULL;
+      }
+    }
+    databasesListNode():next(NULL), prev(NULL), item(NULL){};
+    databasesListNode(databasesListNode * _prev, ExportToV8<T> * _item): next(NULL), prev(_prev), item(_item){};
+  };
+  //ExportToV8<T> objects has to be created ONLY through ObjectWrap
+  //this means, that instances of class will be created only by static method ExportToV8<T>::New
+  virtual ~ExportToV8();
+  ExportToV8();
   T * db;
+  ExportToV8<T>::databasesListNode * me;
+  static ExportToV8<T>::databasesListNode listRoot;
 };
 class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
  private:
@@ -163,11 +202,23 @@ template <class T> void  ExportToV8<T>::ExportTemplate(v8::Handle<v8::Object> ta
   v8::Persistent<v8::Function> constructor = v8::Persistent<v8::Function>::New(tpl->GetFunction());
   target->Set(v8::String::NewSymbol(exportName), constructor);
 }
+template<class T> void ExportToV8<T>::cleanOnShutdown (void * arg) {
+  ExportToV8<T>::databasesListNode * next = static_cast<ExportToV8<T>::databasesListNode * >(arg);
+  //skip one element (initial next value)
+  //as it points to empty node -- begining of list
+  while(NULL != (next = next->getNext())) {
+    next->deleteContainedItem(); 
+  }
+}
+template<class T> void ExportToV8<T>::registerShutdownCallback() {
+  node::AtExit(ExportToV8<T>::cleanOnShutdown, static_cast<void *>(& ExportToV8<T>::listRoot));
+}
 template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target, const char * exportName) {
   v8::HandleScope scope;
   v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
   ExportTemplate(target, tpl, exportName); 
-};
+  registerShutdownCallback();
+}
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments & args) {
   ExportToV8<T> * instance = new ExportToV8<T>();
   instance->Wrap(args.This());
@@ -175,7 +226,21 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments 
 }
 template <class T> ExportToV8<T>::ExportToV8(){
   this->db = new T();
+  this->me = ExportToV8<T>::listRoot.attachNew(this);
 }
+template <class T> ExportToV8<T>::~ExportToV8(){
+  if(this->db) {
+    //this call's destructor of this->db 
+    //destructor implicitly closes database
+    delete this->db;
+    this->db = NULL;
+  }
+  if(this->me) {
+    delete this->me;
+    this->me = NULL;
+  }
+}
+template <class T> typename ExportToV8<T>::databasesListNode ExportToV8<T>::listRoot;
 template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl){
   v8::HandleScope scope;
   //use backward compatible method to populate prototype 
