@@ -82,6 +82,8 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> begin_transaction_try(const v8::Arguments & args);
   static v8::Handle<v8::Value> end_transaction(const v8::Arguments & args);
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
+  static v8::Handle<v8::Value> accept(const v8::Arguments & args);
+  static v8::Handle<v8::Value> accept_bulk(const v8::Arguments & args);
  protected:
   class databasesListNode {
    private:
@@ -174,6 +176,17 @@ class ExportCacheDB: public ExportToV8<kyotocabinet::CacheDB> {
 class ExportGrassDB: public ExportToV8<kyotocabinet::GrassDB> {
 };
 #define EXPORT_TO_NODE(target, type) Export##type::Init(target, #type);
+class ExportVisitor: public kyotocabinet::DB::Visitor {
+ private:
+  v8::Handle<v8::Object> _visitor; 
+ public:
+  ExportVisitor(v8::Handle<v8::Object> visitor);
+  ~ExportVisitor();
+  const char * visit_full(const char * kbuf, size_t ksiz, const char * vbuf, size_t vsize, size_t * sp);
+  const char * visit_empty(const char * kbuf, size_t ksiz, size_t * sp);
+  void visit_before();
+  void visit_after();
+};
 extern "C" {
 void init (v8::Handle<v8::Object> target) {
   EXPORT_TO_NODE(target, PolyDB);
@@ -270,6 +283,8 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   NODE_SET_PROTOTYPE_METHOD(tpl, "end_transaction", ExportToV8<T>::end_transaction);
   NODE_SET_PROTOTYPE_METHOD(tpl, "error", ExportToV8<T>::error);
   NODE_SET_PROTOTYPE_METHOD(tpl, "copy", ExportToV8<T>::copy);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "accept", ExportToV8<T>::accept);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "accept_bulk", ExportToV8<T>::accept_bulk);
   v8::Local<v8::Object> OpenMode = v8::Object::New();
   OpenMode->Set(v8::String::New("OREADER"), v8::Int32::New(T::OREADER));
   OpenMode->Set(v8::String::New("OWRITER"), v8::Int32::New(T::OWRITER));
@@ -331,7 +346,7 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::get(const v8::Arguments 
   if (!instance->db->get(key, &value)) {
     return v8::Undefined();
   } 
-  return v8::String::New(value.c_str());
+  return v8::String::New(value.c_str(), value.size());
 }
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::set(const v8::Arguments & args) {
   std::string key;
@@ -537,6 +552,38 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::error(const v8::Argument
   v8Error->Set(v8::String::New("code"), v8::Int32::New(kcError.code()));
   return scope.Close(v8Error);
 }
+template <class T>  v8::Handle<v8::Value> ExportToV8<T>::accept(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  v8::Local<v8::Object> v8Visitor;
+  std::string key;
+  bool writable = true;
+  REQUIRE_STRING(args, 0, key, "accept method requires first argument to be string");
+  REQUIRE_OBJECT(args, 1, v8Visitor, "accept method requires second argument to be Object");
+  if (args.Length() > 2) {
+    REQUIRE_BOOLEAN(args, 2, writable, "accept method requires third argument to be boolean, or not to be at all"); 
+  }  
+  ExportVisitor visitor(v8Visitor);
+  return scope.Close(v8::Boolean::New(instance->db->accept(key.c_str(), key.size(), &visitor, writable))); 
+}
+template <class T>  v8::Handle<v8::Value> ExportToV8<T>::accept_bulk(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  v8::Local<v8::Object> v8Visitor;
+  v8::Local<v8::Array> v8Keys;
+  bool writable = true;
+  REQUIRE_ARRAY(args, 0, v8Keys, "accept_bulk method requires first argument to be an array of strings");
+  REQUIRE_OBJECT(args, 1, v8Visitor, "accept_bulk method requires second argument to be Object");
+  if (args.Length() > 2) {
+    REQUIRE_BOOLEAN(args, 2, writable, "accept method requires third argument to be boolean, or not to be at all"); 
+  }  
+  std::vector<std::string> keys(v8Keys->Length());
+  for (unsigned int i = 0; i < v8Keys->Length(); i++) {
+    keys[i] = *v8::String::Utf8Value(v8Keys->Get(i)->ToString());
+  }
+  ExportVisitor visitor(v8Visitor);
+  return scope.Close(v8::Boolean::New(instance->db->accept_bulk(keys, &visitor, writable))); 
+}
 void ExportHashDB::Init(v8::Handle<v8::Object> target, const char * exportName){
   v8::HandleScope scope;
   v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
@@ -595,4 +642,85 @@ v8::Handle<v8::Value> ExportHashDB::tune_defrag(const v8::Arguments & args){
   int64_t dfunit; 
   REQUIRE_INT64(args, 0, dfunit , "tune_defrag requires first argument to be 64 bit integer")  
   return v8::Boolean::New(instance->db->tune_defrag(dfunit));
+}
+ExportVisitor::ExportVisitor(v8::Handle<v8::Object> visitor):_visitor(visitor) {
+}
+ExportVisitor::~ExportVisitor() {
+}
+const char * ExportVisitor::visit_full(const char * kbuf, size_t ksiz, const char * vbuf, size_t vsiz, size_t * sp){
+  v8::Local<v8::Value> full;
+  v8::Local<v8::String> full_sym = v8::String::New("full");
+  v8::Handle<v8::Value> argv[2];
+  if (!this->_visitor->Has(full_sym)) {
+    return kyotocabinet::DB::Visitor::NOP;
+  } 
+  full = this->_visitor->Get(full_sym);
+  if (!full->IsFunction()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  argv[0] = kbuf ? v8::String::New(kbuf, ksiz) : v8::Null();
+  argv[1] = vbuf ? v8::String::New(vbuf, vsiz) : v8::Null(); 
+  v8::Local<v8::Value> result = v8::Function::Cast(*full)->Call(this->_visitor, 2, argv);
+  if (result.IsEmpty() || result->IsUndefined()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  if (result->IsNull()) {
+    return kyotocabinet::DB::Visitor::REMOVE;
+  }
+  if (!result->IsString()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  v8::String::Utf8Value resultString(result->ToString());
+  *sp = resultString.length();
+  return *resultString;
+}
+const char * ExportVisitor::visit_empty(const char * kbuf, size_t ksiz, size_t * sp) {
+  v8::Local<v8::Value> empty;
+  v8::Local<v8::String> empty_sym = v8::String::New("empty");
+  v8::Handle<v8::Value> argv[1];
+  if (!this->_visitor->Has(empty_sym)) {
+    return kyotocabinet::DB::Visitor::NOP;
+  } 
+  empty = this->_visitor->Get(empty_sym);
+  if (!empty->IsFunction()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  argv[0] = kbuf ? v8::String::New(kbuf, ksiz) : v8::Null();
+  v8::Local<v8::Value> result = v8::Function::Cast(*empty)->Call(this->_visitor, 1, argv);
+  if (result.IsEmpty() || result->IsUndefined()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  if (result->IsNull()) {
+    return kyotocabinet::DB::Visitor::REMOVE;
+  }
+  if (!result->IsString()) {
+    return kyotocabinet::DB::Visitor::NOP;
+  }
+  v8::String::Utf8Value resultString(result->ToString());
+  *sp = resultString.length();
+  return *resultString;
+}
+void ExportVisitor::visit_before() {
+  v8::Local<v8::Value> before;
+  v8::Local<v8::String> before_sym = v8::String::New("before");
+  if (!this->_visitor->Has(before_sym)) {
+    return;
+  } 
+  before = this->_visitor->Get(before_sym);
+  if (!before->IsFunction()) {
+    return;
+  }
+  v8::Function::Cast(*before)->Call(this->_visitor, 0, NULL);
+}
+void ExportVisitor::visit_after() {
+  v8::Local<v8::Value> after;
+  v8::Local<v8::String> after_sym = v8::String::New("after");
+  if (!this->_visitor->Has(after_sym)) {
+    return;
+  } 
+  after = this->_visitor->Get(after_sym);
+  if (!after->IsFunction()) {
+    return;
+  }
+  v8::Function::Cast(*after)->Call(this->_visitor, 0, NULL);
 }
