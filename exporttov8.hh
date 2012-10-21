@@ -1,10 +1,11 @@
 #ifndef EXPORT_TO_V8_DEFINED
 #define EXPORT_TO_V8_DEFINED 1
+#include <node/uv.h>
+#include <node/node_buffer.h>
 #include "argv_helpers.hh"
 #include "standart_progress_checker.hh"
 #include "exportvisitor.hh"
-#include <node/uv.h>
-#include <node/node_buffer.h>
+#include "exportcursor.hh"
 template<class T> class ExportToV8: public node::ObjectWrap {
  public:     
   static void Init(v8::Handle<v8::Object> target, const char * exportName);
@@ -40,6 +41,7 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> accept(const v8::Arguments & args);
   static v8::Handle<v8::Value> accept_bulk(const v8::Arguments & args);
   static v8::Handle<v8::Value> iterate(const v8::Arguments & args);
+  static v8::Handle<v8::Value> cursor(const v8::Arguments & args);
  protected:
   //ExportToV8<T> objects has to be created ONLY through ObjectWrap
   //this means, that instances of class will be created only by static method ExportToV8<T>::New

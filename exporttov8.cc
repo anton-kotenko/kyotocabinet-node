@@ -63,6 +63,7 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   NODE_SET_PROTOTYPE_METHOD(tpl, "accept", ExportToV8<T>::accept);
   NODE_SET_PROTOTYPE_METHOD(tpl, "accept_bulk", ExportToV8<T>::accept_bulk);
   NODE_SET_PROTOTYPE_METHOD(tpl, "iterate", ExportToV8<T>::iterate);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "cursor", ExportToV8<T>::cursor);
   v8::Local<v8::Object> OpenMode = v8::Object::New();
   OpenMode->Set(v8::String::New("OREADER"), v8::Int32::New(T::OREADER));
   OpenMode->Set(v8::String::New("OWRITER"), v8::Int32::New(T::OWRITER));
@@ -396,5 +397,10 @@ template <class T>  v8::Handle<v8::Value> ExportToV8<T>::iterate(const v8::Argum
   }  
   ExportVisitor visitor(v8Visitor);
   return scope.Close(v8::Boolean::New(instance->db->iterate(&visitor, writable, NULL))); 
+}
+template <class T>  v8::Handle<v8::Value> ExportToV8<T>::cursor(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  return scope.Close(ExportCursor::New(instance->db->cursor())); 
 }
 
