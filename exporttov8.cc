@@ -62,6 +62,7 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   NODE_SET_PROTOTYPE_METHOD(tpl, "copy", ExportToV8<T>::copy);
   NODE_SET_PROTOTYPE_METHOD(tpl, "accept", ExportToV8<T>::accept);
   NODE_SET_PROTOTYPE_METHOD(tpl, "accept_bulk", ExportToV8<T>::accept_bulk);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "iterate", ExportToV8<T>::iterate);
   v8::Local<v8::Object> OpenMode = v8::Object::New();
   OpenMode->Set(v8::String::New("OREADER"), v8::Int32::New(T::OREADER));
   OpenMode->Set(v8::String::New("OWRITER"), v8::Int32::New(T::OWRITER));
@@ -382,5 +383,18 @@ template <class T>  v8::Handle<v8::Value> ExportToV8<T>::accept_bulk(const v8::A
   }
   ExportVisitor visitor(v8Visitor);
   return scope.Close(v8::Boolean::New(instance->db->accept_bulk(keys, &visitor, writable))); 
+}
+template <class T>  v8::Handle<v8::Value> ExportToV8<T>::iterate(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  v8::Local<v8::Object> v8Visitor;
+  std::string key;
+  bool writable = true;
+  REQUIRE_OBJECT(args, 0, v8Visitor, "iterate method requires second argument to be Object");
+  if (args.Length() > 1) {
+    REQUIRE_BOOLEAN(args, 1, writable, "iterate method requires third argument to be boolean, or not to be at all"); 
+  }  
+  ExportVisitor visitor(v8Visitor);
+  return scope.Close(v8::Boolean::New(instance->db->iterate(&visitor, writable, NULL))); 
 }
 

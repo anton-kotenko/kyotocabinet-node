@@ -39,6 +39,7 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
   static v8::Handle<v8::Value> accept(const v8::Arguments & args);
   static v8::Handle<v8::Value> accept_bulk(const v8::Arguments & args);
+  static v8::Handle<v8::Value> iterate(const v8::Arguments & args);
  protected:
   //ExportToV8<T> objects has to be created ONLY through ObjectWrap
   //this means, that instances of class will be created only by static method ExportToV8<T>::New

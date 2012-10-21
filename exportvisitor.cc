@@ -1,31 +1,27 @@
+//TODO: do i need to delete kbuf and vbuf???
 ExportVisitor::ExportVisitor(v8::Handle<v8::Object> visitor):_visitor(visitor) {
 }
 ExportVisitor::~ExportVisitor() {
 }
 const char * ExportVisitor::visit_full(const char * kbuf, size_t ksiz, const char * vbuf, size_t vsiz, size_t * sp){
   v8::HandleScope scope;
-  v8::Local<v8::Value> full;
   v8::Local<v8::String> full_sym = v8::String::New("full");
   v8::Handle<v8::Value> argv[2];
-  if (!this->_visitor->Has(full_sym)) {
+  if (!this->_visitor->Has(full_sym) || !this->_visitor->Get(full_sym)->IsFunction()) {
     return kyotocabinet::DB::Visitor::NOP;
   } 
-  full = this->_visitor->Get(full_sym);
-  if (!full->IsFunction()) {
-    return kyotocabinet::DB::Visitor::NOP;
-  }
   if (kbuf) {
-    argv[0] = v8::Handle<v8::Value>((node::Buffer::New(const_cast<char *>(kbuf), ksiz)->handle_));
+    argv[0] = v8::Local<v8::Object>::New(node::Buffer::New(const_cast<char *>(kbuf), ksiz)->handle_);
   } else {
     argv[0] = v8::Null();
   }
-  if (kbuf) {
-    argv[1] = v8::Handle<v8::Value>((node::Buffer::New(const_cast<char *>(vbuf), vsiz)->handle_));
+  if (vbuf) {
+    argv[1] = ((node::Buffer::New(const_cast<char *>(vbuf), vsiz)->handle_));
   } else {
     argv[1] = v8::Null();
   }
-  //do i need to delete vbuf and kbuf or this work will be done by caller????
-  v8::Local<v8::Value> result = v8::Function::Cast(*full)->Call(this->_visitor, 2, argv);
+  
+  v8::Handle<v8::Value> result = node::MakeCallback(this->_visitor, "full" , 2, argv);
   if (result.IsEmpty() || result->IsUndefined()) {
     return kyotocabinet::DB::Visitor::NOP;
   }
@@ -41,22 +37,17 @@ const char * ExportVisitor::visit_full(const char * kbuf, size_t ksiz, const cha
 }
 const char * ExportVisitor::visit_empty(const char * kbuf, size_t ksiz, size_t * sp) {
   v8::HandleScope scope;
-  v8::Local<v8::Value> empty;
   v8::Local<v8::String> empty_sym = v8::String::New("empty");
   v8::Handle<v8::Value> argv[1];
-  if (!this->_visitor->Has(empty_sym)) {
+  if (!this->_visitor->Has(empty_sym) || !this->_visitor->Get(empty_sym)->IsFunction()) {
     return kyotocabinet::DB::Visitor::NOP;
   } 
-  empty = this->_visitor->Get(empty_sym);
-  if (!empty->IsFunction()) {
-    return kyotocabinet::DB::Visitor::NOP;
-  }
   if (kbuf) {
     argv[0] = v8::Handle<v8::Value>((node::Buffer::New(const_cast<char *>(kbuf), ksiz)->handle_));
   } else {
     argv[0] = v8::Null();
   }
-  v8::Local<v8::Value> result = v8::Function::Cast(*empty)->Call(this->_visitor, 1, argv);
+  v8::Handle<v8::Value> result = node::MakeCallback(this->_visitor, empty_sym , 1, argv);
   if (result.IsEmpty() || result->IsUndefined()) {
     return kyotocabinet::DB::Visitor::NOP;
   }
