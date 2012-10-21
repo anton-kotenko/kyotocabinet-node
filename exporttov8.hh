@@ -12,8 +12,6 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Local<v8::FunctionTemplate> PrepareObjectTemlate(const char * exportName);
   static v8::Handle<v8::Value> New(const v8::Arguments & args); 
   static void setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl);
-  static void cleanOnShutdown (void * args);
-  static void registerShutdownCallback();
   static v8::Handle<v8::Value> open(const v8::Arguments & args);
   static v8::Handle<v8::Value> close(const v8::Arguments & args);
   static v8::Handle<v8::Value> size(const v8::Arguments & args);
@@ -42,45 +40,11 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> accept(const v8::Arguments & args);
   static v8::Handle<v8::Value> accept_bulk(const v8::Arguments & args);
  protected:
-  class databasesListNode {
-   private:
-    ExportToV8<T>::databasesListNode * next;
-    ExportToV8<T>::databasesListNode * prev;
-    ExportToV8<T> * item;
-   public:
-    ExportToV8<T>::databasesListNode * attachNew(ExportToV8<T> * _item){
-      if (this->next != NULL) {
-        return this->next->attachNew(_item);
-      } 
-      return this->next = new databasesListNode(this, _item);
-    }
-    ~databasesListNode() {
-      if (this->prev) {
-        this->prev->next = this->next;
-      }
-      if (this->next) {
-        this->next->prev = this;
-      }  
-    }
-    ExportToV8<T>::databasesListNode * getNext(){
-      return this->next;
-    }
-    void deleteContainedItem() {
-      if (this->item) {
-        delete this->item;
-        this->item = NULL;
-      }
-    }
-    databasesListNode():next(NULL), prev(NULL), item(NULL){};
-    databasesListNode(databasesListNode * _prev, ExportToV8<T> * _item): next(NULL), prev(_prev), item(_item){};
-  };
   //ExportToV8<T> objects has to be created ONLY through ObjectWrap
   //this means, that instances of class will be created only by static method ExportToV8<T>::New
   virtual ~ExportToV8();
   ExportToV8();
   T * db;
-  ExportToV8<T>::databasesListNode * me;
-  static ExportToV8<T>::databasesListNode listRoot;
 };
 #include "exporttov8.cc"
 #endif //EXPORT_TO_V8_DEFINED

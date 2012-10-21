@@ -10,22 +10,10 @@ template <class T> void  ExportToV8<T>::ExportTemplate(v8::Handle<v8::Object> ta
   v8::Persistent<v8::Function> constructor = v8::Persistent<v8::Function>::New(tpl->GetFunction());
   target->Set(v8::String::NewSymbol(exportName), constructor);
 }
-template<class T> void ExportToV8<T>::cleanOnShutdown (void * arg) {
-  ExportToV8<T>::databasesListNode * next = static_cast<ExportToV8<T>::databasesListNode * >(arg);
-  //skip one element (initial next value)
-  //as it points to empty node -- begining of list
-  while(NULL != (next = next->getNext())) {
-    next->deleteContainedItem(); 
-  }
-}
-template<class T> void ExportToV8<T>::registerShutdownCallback() {
-  node::AtExit(ExportToV8<T>::cleanOnShutdown, static_cast<void *>(& ExportToV8<T>::listRoot));
-}
 template <class T> void  ExportToV8<T>::Init(v8::Handle<v8::Object> target, const char * exportName) {
   v8::HandleScope scope;
   v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
   ExportTemplate(target, tpl, exportName); 
-  registerShutdownCallback();
 }
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments & args) {
   ExportToV8<T> * instance = new ExportToV8<T>();
@@ -34,7 +22,6 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments 
 }
 template <class T> ExportToV8<T>::ExportToV8(){
   this->db = new T();
-  this->me = ExportToV8<T>::listRoot.attachNew(this);
 }
 template <class T> ExportToV8<T>::~ExportToV8(){
   if(this->db) {
@@ -43,12 +30,7 @@ template <class T> ExportToV8<T>::~ExportToV8(){
     delete this->db;
     this->db = NULL;
   }
-  if(this->me) {
-    delete this->me;
-    this->me = NULL;
-  }
 }
-template <class T> typename ExportToV8<T>::databasesListNode ExportToV8<T>::listRoot;
 template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl){
   v8::HandleScope scope;
   //use backward compatible method to populate prototype 
