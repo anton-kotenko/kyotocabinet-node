@@ -80,6 +80,7 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> begin_transaction_try(const v8::Arguments & args);
   static v8::Handle<v8::Value> end_transaction(const v8::Arguments & args);
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
+  static v8::Handle<v8::Value> cursor(const v8::Arguments & args);
   ExportToV8();
  protected:
   T * db;
@@ -103,6 +104,147 @@ class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
   ~standartProgressChecker() {
   } 
 };
+#define GET_CURSOR(args, dst)\
+  kyotocabinet::DB::Cursor * dst = node::ObjectWrap::Unwrap<ExportCursor>(args.This())->cursor_;
+class ExportCursor : public node::ObjectWrap {
+ private:
+  kyotocabinet::DB::Cursor * cursor_;
+  static v8::Persistent<v8::Function> ConstructorFunction;
+  static v8::Handle<v8::Value> JsConstructor(const v8::Arguments & args) {
+    ExportCursor * instance = new ExportCursor();
+    instance->Wrap(args.This()); 
+    return args.This();
+  }
+  static v8::Handle<v8::Function> Init() {
+    if (!ExportCursor::ConstructorFunction.IsEmpty()) {
+      return ExportCursor::ConstructorFunction;
+    } 
+    v8::HandleScope scope;
+    v8::Local<v8::FunctionTemplate> f_tpl = v8::FunctionTemplate::New(ExportCursor::JsConstructor);
+    f_tpl->SetClassName(v8::String::NewSymbol("Cursor"));
+    f_tpl->InstanceTemplate()->SetInternalFieldCount(1);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "set", ExportCursor::Set);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "remove", ExportCursor::Remove);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "get_key", ExportCursor::GetKey);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "get_value", ExportCursor::GetValue);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "get", ExportCursor::Get);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "jump", ExportCursor::Jump);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "jump_back", ExportCursor::JumpBack);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "step", ExportCursor::Step);
+    NODE_SET_PROTOTYPE_METHOD(f_tpl, "step_back", ExportCursor::StepBack);
+
+    return ExportCursor::ConstructorFunction = v8::Persistent<v8::Function>::New(f_tpl->GetFunction());
+  }
+  ExportCursor() {
+    cursor_ = NULL; 
+  }
+  ~ExportCursor() {
+    if (cursor_) {
+      delete cursor_;
+      cursor_ = NULL;
+    }
+  }
+ friend v8::FunctionTemplate;
+ public: 
+  static v8::Handle<v8::Object> New (kyotocabinet::DB::Cursor * cursor) {
+    v8::HandleScope scope;
+    v8::Local<v8::Object> thisObj = ExportCursor::Init()->NewInstance();
+    node::ObjectWrap::Unwrap<ExportCursor>(thisObj)->cursor_ = cursor;
+    return scope.Close(thisObj);
+  }
+  static v8::Handle<v8::Value> Set (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string new_value;
+    bool step = false;
+    REQUIRE_STRING(args, 0, new_value, "Cursor.Set expects first argument to be string")
+    if (args.Length() > 2) {
+      REQUIRE_BOOLEAN(args, 1, step, "Cursor.Set expects second argument to be boolean or to be abscent");
+    }
+    return scope.Close(v8::Boolean::New(cursor->set_value_str(new_value, step)));
+  };
+  static v8::Handle<v8::Value> Remove (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    return v8::Boolean::New(cursor->remove());
+  };
+  static v8::Handle<v8::Value> GetKey (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string key;
+    bool step = false;
+    if (args.Length() > 0) {
+      REQUIRE_BOOLEAN(args, 0, step, "Cursor.GetKey expects first argument to be boolean or to be abscent");
+    }
+    //TODO: handle error
+    cursor->get_key(&key, step);
+    return scope.Close(v8::String::New(key.c_str()));
+  };
+  static v8::Handle<v8::Value> GetValue (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string value;
+    bool step = false;
+    if (args.Length() > 0) {
+      REQUIRE_BOOLEAN(args, 0, step, "Cursor.GetValue expects first argument to be boolean or to be abscent");
+    }
+    //TODO: handle error
+    cursor->get_value(&value, step);
+    return scope.Close(v8::String::New(value.c_str()));
+  };
+  static v8::Handle<v8::Value> Get (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string value;
+    std::string key;
+    bool step = false;
+    v8::Local<v8::Object> result = v8::Object::New();
+    if (args.Length() > 0) {
+      REQUIRE_BOOLEAN(args, 0, step, "Cursor.Get expects first argument to be boolean or to be abscent");
+    }
+    //TODO: handle error
+    if (cursor->get(&key, &value, step)) {
+      result->Set(v8::String::New("key"), v8::String::New(key.c_str()));
+      result->Set(v8::String::New("value"), v8::String::New(value.c_str()));
+    }
+    return scope.Close(result);
+  };
+  static v8::Handle<v8::Value> Jump (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string key;
+    bool result; 
+    if (args.Length() > 0) {
+      REQUIRE_STRING(args, 0, key, "Cursor.Jump requires first argument to be string or to be abscent");
+      result = cursor->jump(key);
+    } else {
+      result = cursor->jump();
+    }
+    return scope.Close(v8::Boolean::New(result));
+  };
+  static v8::Handle<v8::Value> JumpBack (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    v8::HandleScope scope; 
+    std::string key;
+    bool result; 
+    if (args.Length() > 0) {
+      REQUIRE_STRING(args, 0, key, "Cursor.JumpBack requires first argument to be string or to be abscent");
+      result = cursor->jump_back(key);
+    } else {
+      result = cursor->jump_back();
+    }
+    return scope.Close(v8::Boolean::New(result));
+  };
+  static v8::Handle<v8::Value> Step (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    return v8::Boolean::New(cursor->step()); 
+  };
+  static v8::Handle<v8::Value> StepBack (const v8::Arguments & args) {
+    GET_CURSOR(args, cursor);
+    return v8::Boolean::New(cursor->step_back()); 
+  };
+};
+v8::Persistent<v8::Function> ExportCursor::ConstructorFunction;
+
 class ExportPolyDB : public ExportToV8<kyotocabinet::PolyDB> {
 };
 class ExportHashDB: public ExportToV8<kyotocabinet::HashDB> {
@@ -205,6 +347,7 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   NODE_SET_PROTOTYPE_METHOD(tpl, "end_transaction", ExportToV8<T>::end_transaction);
   NODE_SET_PROTOTYPE_METHOD(tpl, "error", ExportToV8<T>::error);
   NODE_SET_PROTOTYPE_METHOD(tpl, "copy", ExportToV8<T>::copy);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "cursor", ExportToV8<T>::cursor);
   v8::Local<v8::Object> OpenMode = v8::Object::New();
   OpenMode->Set(v8::String::New("OREADER"), v8::Int32::New(T::OREADER));
   OpenMode->Set(v8::String::New("OWRITER"), v8::Int32::New(T::OWRITER));
@@ -472,6 +615,13 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::error(const v8::Argument
   v8Error->Set(v8::String::New("code"), v8::Int32::New(kcError.code()));
   return scope.Close(v8Error);
 }
+template <class T> v8::Handle<v8::Value> ExportToV8<T>::cursor(const v8::Arguments & args) {
+  v8::HandleScope scope;
+  ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
+  kyotocabinet::DB::Cursor * cursor = instance->db->cursor();
+  return scope.Close(ExportCursor::New(cursor));
+}
+
 void ExportHashDB::Init(v8::Handle<v8::Object> target, const char * exportName){
   v8::HandleScope scope;
   v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);

@@ -5,3 +5,6 @@ LIBS= -lv8 -lstdc++ -lkyotocabinet
 DEFINES=-D LARGEFILE_SOURCE -D FILE_OFFSET_BITS=64
 kyotonode.node: main.cc
 	$(CC) -o kyotonode.node -shared -Wall -g  -DPIC -fpic -fPIC $(DEFINES) $(INCLUDE_PATH) $(LIBS_PATH) main.cc $(LIBS)
+test.node: test.cc
+	$(CC) -o test.node -shared -Wall -g  -DPIC -fpic -fPIC $(DEFINES) $(INCLUDE_PATH) $(LIBS_PATH) test.cc $(LIBS)
+
