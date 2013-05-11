@@ -175,8 +175,9 @@ class ExportCursor : public node::ObjectWrap {
     if (args.Length() > 0) {
       REQUIRE_BOOLEAN(args, 0, step, "Cursor.GetKey expects first argument to be boolean or to be abscent");
     }
-    //TODO: handle error
-    cursor->get_key(&key, step);
+    if (!cursor->get_key(&key, step)) {
+      return v8::Undefined();
+    }
     return scope.Close(v8::String::New(key.c_str()));
   };
   static v8::Handle<v8::Value> GetValue (const v8::Arguments & args) {
@@ -187,8 +188,9 @@ class ExportCursor : public node::ObjectWrap {
     if (args.Length() > 0) {
       REQUIRE_BOOLEAN(args, 0, step, "Cursor.GetValue expects first argument to be boolean or to be abscent");
     }
-    //TODO: handle error
-    cursor->get_value(&value, step);
+    if (!cursor->get_value(&value, step)) {
+      return v8::Undefined();
+    }
     return scope.Close(v8::String::New(value.c_str()));
   };
   static v8::Handle<v8::Value> Get (const v8::Arguments & args) {
@@ -201,10 +203,11 @@ class ExportCursor : public node::ObjectWrap {
     if (args.Length() > 0) {
       REQUIRE_BOOLEAN(args, 0, step, "Cursor.Get expects first argument to be boolean or to be abscent");
     }
-    //TODO: handle error
     if (cursor->get(&key, &value, step)) {
       result->Set(v8::String::New("key"), v8::String::New(key.c_str()));
       result->Set(v8::String::New("value"), v8::String::New(value.c_str()));
+    } else {
+      return v8::Undefined();
     }
     return scope.Close(result);
   };
