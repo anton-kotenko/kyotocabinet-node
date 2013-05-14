@@ -82,6 +82,7 @@ template<class T> class ExportToV8: public node::ObjectWrap {
   static v8::Handle<v8::Value> error(const v8::Arguments & args);
   static v8::Handle<v8::Value> cursor(const v8::Arguments & args);
   ExportToV8();
+  virtual ~ExportToV8();
  protected:
   T * db;
 };
@@ -321,6 +322,13 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::New(const v8::Arguments 
 template <class T> ExportToV8<T>::ExportToV8(){
   this->db = new T();
 }
+
+template <class T> ExportToV8<T>::~ExportToV8(){
+  if (this->db) {
+    delete this->db;
+    this->db = NULL;
+  }
+};
 template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::FunctionTemplate> tpl){
   v8::HandleScope scope;
   //use backward compatible method to populate prototype 
@@ -417,10 +425,11 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::get(const v8::Arguments 
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::set(const v8::Arguments & args) {
   std::string key;
   std::string value; 
+  v8::HandleScope scope;
   REQUIRE_STRING(args, 0, key, "set requires first argument to be string")
   REQUIRE_STRING(args, 1, value, "set requires second argument to be string")
   ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
-  return v8::Boolean::New(instance->db->set(key, value)); 
+  return scope.Close(v8::Boolean::New(instance->db->set(key, value))); 
 }
 template <class T> v8::Handle<v8::Value> ExportToV8<T>::add(const v8::Arguments & args) {
   std::string key;
