@@ -1,6 +1,12 @@
 {
   "name": "kyotocabinet",
-  "main": "./kyotonode.node"
+  "version": "0.1.0",
+  "description": "synchronous bindings to kyotocabinet database",
+  "main": "./build/Release/kyotonode.node",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:anton-kotenko/kyotocabinet-node.git"
+  }
 }
 
 
