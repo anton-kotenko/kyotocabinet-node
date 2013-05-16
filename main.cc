@@ -642,7 +642,6 @@ void ExportHashDB::Init(v8::Handle<v8::Object> target, const char * exportName){
 }
 void ExportHashDB::setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl){
   v8::HandleScope scope;
-  std::cerr<<"HashDB set prototype"<<std::endl;
   //use backward compatible method to populate prototype 
   //instead of node::SetPrototypeMetod
   NODE_SET_PROTOTYPE_METHOD(tpl, "tune_alignment", ExportHashDB::tune_alignment);
