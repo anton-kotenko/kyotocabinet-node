@@ -275,6 +275,10 @@ class ExportProtoHashDB: public ExportToV8<kyotocabinet::ProtoHashDB> {
 class ExportProtoTreeDB: public ExportToV8<kyotocabinet::ProtoTreeDB> {
 };
 class ExportStashDB: public ExportToV8<kyotocabinet::StashDB> {
+ public:
+  static void Init(v8::Handle<v8::Object> target, const char * exportName);
+  static void setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl);
+  static v8::Handle<v8::Value> tune_buckets(const v8::Arguments & args);
 };
 class ExportCacheDB: public ExportToV8<kyotocabinet::CacheDB> {
 };
@@ -692,3 +696,22 @@ v8::Handle<v8::Value> ExportHashDB::tune_defrag(const v8::Arguments & args){
   REQUIRE_INT64(args, 0, dfunit , "tune_defrag requires first argument to be 64 bit integer")  
   return v8::Boolean::New(instance->db->tune_defrag(dfunit));
 }
+void ExportStashDB::setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl){
+  v8::HandleScope scope;
+  //use backward compatible method to populate prototype 
+  //instead of node::SetPrototypeMetod
+  NODE_SET_PROTOTYPE_METHOD(tpl, "tune_buckets", ExportStashDB::tune_buckets);
+} 
+v8::Handle<v8::Value> ExportStashDB::tune_buckets(const v8::Arguments & args){
+  ExportStashDB * instance = node::ObjectWrap::Unwrap<ExportStashDB>(args.This());
+  int64_t bnum; 
+  REQUIRE_INT64(args, 0, bnum , "tune_buckets requires first argument to be 64 bit integer")  
+  return v8::Boolean::New(instance->db->tune_buckets(bnum));
+}
+void ExportStashDB::Init(v8::Handle<v8::Object> target, const char * exportName){
+  v8::HandleScope scope;
+  v8::Local<v8::FunctionTemplate> tpl = PrepareObjectTemlate(exportName);
+  setCustomPrototype(tpl);
+  ExportTemplate(target, tpl, exportName);  
+}
+
