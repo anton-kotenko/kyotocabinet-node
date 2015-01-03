@@ -48,7 +48,19 @@
   dst = static_cast<int8_t>(argv[num]->Int32Value());\
 } while(0);
 
-template<class T> class ExportToV8: public node::ObjectWrap {
+class ExportCursor;
+//Provide Ref/Unref methods on
+//ExportToV8 template instantiations
+//for ExportCursor. ExportCursor
+//internally contains reference to
+//database, it was created for, so
+//need to explain GC not to remove
+//database until all it's cursors will be dead
+class iRefable: public node::ObjectWrap {
+  friend ExportCursor;
+};
+
+template<class T> class ExportToV8: public iRefable {
  public:     
   static void Init(v8::Handle<v8::Object> target, const char * exportName);
   static void  ExportTemplate(v8::Handle<v8::Object> target, v8::Handle<v8::FunctionTemplate> tpl, const char * exportName);
@@ -110,6 +122,7 @@ class standartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
 class ExportCursor : public node::ObjectWrap {
  private:
   kyotocabinet::DB::Cursor * cursor_;
+  iRefable * parent_db;
   static v8::Persistent<v8::Function> ConstructorFunction;
   static v8::Handle<v8::Value> JsConstructor(const v8::Arguments & args) {
     ExportCursor * instance = new ExportCursor();
@@ -138,19 +151,31 @@ class ExportCursor : public node::ObjectWrap {
   }
   ExportCursor() {
     cursor_ = NULL; 
+    parent_db = NULL;
   }
   ~ExportCursor() {
     if (cursor_) {
       delete cursor_;
       cursor_ = NULL;
     }
+    if (parent_db) {
+      parent_db->Unref();
+    }
   }
  friend v8::FunctionTemplate;
  public: 
-  static v8::Handle<v8::Object> New (kyotocabinet::DB::Cursor * cursor) {
+  static v8::Handle<v8::Object> New (kyotocabinet::DB::Cursor * cursor, iRefable * parent_db) {
     v8::HandleScope scope;
     v8::Local<v8::Object> thisObj = ExportCursor::Init()->NewInstance();
-    node::ObjectWrap::Unwrap<ExportCursor>(thisObj)->cursor_ = cursor;
+    ExportCursor * cursor_inst = node::ObjectWrap::Unwrap<ExportCursor>(thisObj);
+    cursor_inst->cursor_ = cursor;
+    if (parent_db) {
+      cursor_inst->parent_db = parent_db;
+      //Mark database as used to avoid
+      //situation when is removed by GC
+      //while cursor is alive
+      parent_db->Ref();
+    }
     return scope.Close(thisObj);
   }
   static v8::Handle<v8::Value> Set (const v8::Arguments & args) {
@@ -635,7 +660,7 @@ template <class T> v8::Handle<v8::Value> ExportToV8<T>::cursor(const v8::Argumen
   v8::HandleScope scope;
   ExportToV8<T> * instance = node::ObjectWrap::Unwrap<ExportToV8<T> >(args.This());
   kyotocabinet::DB::Cursor * cursor = instance->db->cursor();
-  return scope.Close(ExportCursor::New(cursor));
+  return scope.Close(ExportCursor::New(cursor, instance));
 }
 
 void ExportHashDB::Init(v8::Handle<v8::Object> target, const char * exportName){

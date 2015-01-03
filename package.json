@@ -2,11 +2,24 @@
   "name": "kyotocabinet",
   "version": "0.1.0",
   "description": "synchronous bindings to kyotocabinet database",
-  "main": "./build/Release/kyotonode.node",
+  "main": "./index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:anton-kotenko/kyotocabinet-node.git"
-  }
+  },
+  "scripts": {
+    "install": "node-gyp rebuild"
+  },
+  "gypfile": true,
+  "readme": "kyotocabinet-node\n=================",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/anton-kotenko/kyotocabinet-node/issues"
+  },
+  "_id": "kyotocabinet@0.1.0",
+  "dist": {
+    "shasum": "d3d20b0cc169bdf35aa7f789461998aed66f96cd"
+  },
+  "_resolved": "git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git#6cf1b8e12f8a68493fd1fb113592a8bd7864bd7d",
+  "_from": "kyotocabinet@git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git"
 }
-
-
