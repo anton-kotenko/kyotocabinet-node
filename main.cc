@@ -17,7 +17,7 @@
 extern "C" {
 void init (v8::Handle<v8::Object> target) {
   EXPORT_TO_NODE(target, PolyDB);
-  //EXPORT_TO_NODE(target, HashDB);
+  EXPORT_TO_NODE(target, HashDB);
   EXPORT_TO_NODE(target, TreeDB);
   EXPORT_TO_NODE(target, DirDB);
   EXPORT_TO_NODE(target, ForestDB);
