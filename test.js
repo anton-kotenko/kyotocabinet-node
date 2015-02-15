@@ -1,4 +1,4 @@
-kc = require('./kyotonode.node');
+kc = require('./');
 db = new kc.PolyDB();
 console.log(db.open('/tmp/db.kch', db.OpenMode.OCREATE | db.OpenMode.OWRITER));
 console.log('size:', db.size());

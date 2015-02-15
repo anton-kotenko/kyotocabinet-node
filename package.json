@@ -20,6 +20,12 @@
   "dist": {
     "shasum": "d3d20b0cc169bdf35aa7f789461998aed66f96cd"
   },
+  "engine": {
+    "nodejs": ">=v0.10.0" 
+  },
+  "dependencies": {
+    "nan": ">v1.6.0"
+  },
   "_resolved": "git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git#6cf1b8e12f8a68493fd1fb113592a8bd7864bd7d",
   "_from": "kyotocabinet@git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git"
 }
