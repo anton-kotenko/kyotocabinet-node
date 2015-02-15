@@ -3,4 +3,9 @@ node_js:
   - "0.12"
   - "0.10"
   - "iojs"
-  - "iojs-v1.0.4" 
+  - "iojs-v1.0.4"
+before_install:
+  - wget http://fallabs.com/kyotocabinet/pkg/kyotocabinet-1.2.76.tar.gz
+  - tar -xzf kyotocabinet-1.2.76.tar.gz
+  - cd kyotocabinet-1.2.76 && ./configure --libdir /usr/lib && make && sudo make -i install && cd ../
+  - sudo ldconfig -v /usr/lib

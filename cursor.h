@@ -26,7 +26,7 @@ class ExportCursor;
 //need to explain GC not to remove
 //database until all it's cursors will be dead
 class iRefable: public node::ObjectWrap {
-  friend ExportCursor;
+  friend class ExportCursor;
 };
 
 class ExportCursor : public node::ObjectWrap {
@@ -37,7 +37,7 @@ class ExportCursor : public node::ObjectWrap {
   static v8::Handle<v8::Function> Init();
   ExportCursor();
   ~ExportCursor(); 
- friend v8::FunctionTemplate;
+ friend class v8::FunctionTemplate;
  public: 
   static v8::Handle<v8::Object> New (kyotocabinet::DB::Cursor * cursor, iRefable * parent_db);
   static NAN_METHOD(Set);
