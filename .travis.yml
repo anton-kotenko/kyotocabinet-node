@@ -8,4 +8,4 @@ before_install:
   - wget http://fallabs.com/kyotocabinet/pkg/kyotocabinet-1.2.76.tar.gz
   - tar -xzf kyotocabinet-1.2.76.tar.gz
   - cd kyotocabinet-1.2.76 && ./configure --libdir /usr/lib && make && sudo make -i install && cd ../
-  - sudo ldconfig -v /usr/lib
+  - sudo ldconfig /usr/lib

@@ -52,9 +52,6 @@ describe("StashDB", readWriteTest.bind(null, "StashDB"));
 describe("CacheDB", readWriteTest.bind(null, "CacheDB")); 
 describe("GrassDB", readWriteTest.bind(null, "GrassDB")); 
 
-
-
-
 function commonTest (DbClassName) {
   var DbClass = module[DbClassName],
     dbPath = Os.tmpdir() + '/' + DbClassName + Math.random();
@@ -274,6 +271,7 @@ function readWriteTest (DbClassName) {
     Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
   });
   //it('increment should work', function () {
+  // FIXME increment actually is inusable
   //  var key = randString(),
   //    value = Math.round(Math.random() * 1e5);
   //  
@@ -282,6 +280,148 @@ function readWriteTest (DbClassName) {
   //  Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
   //  Assertt.strictEqual(instance.increment(key), value + 1);
   //});
-  
+  it('seize should work', function () {
+    var key = randString(),
+      value = randString();
+    
+    Assert.ok(instance.add(key, value)); 
+    Assert.strictEqual(instance.get(key), value);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.seize(key), value);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.get(key), undefined);
+    Assert.strictEqual(instance.count(), 0);
+  });
 
+  it('seize should correctly handle unknown key', function () {
+    var key = randString();
+    
+    Assert.strictEqual(instance.seize(key), undefined);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.NOREC);
+    Assert.strictEqual(instance.count(), 0);
+  });
+  
+  it('cas should work correctly on value match', function () {
+    var key = randString(),
+      value = randString(),
+      value2 = value + randString();
+
+    Assert.ok(instance.add(key, value)); 
+    Assert.strictEqual(instance.get(key), value);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(instance.cas(key, value, value2));
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.get(key), value2);
+  });
+
+  it('cas should work correctly on value mismatch', function () {
+    var key = randString(),
+      value = randString(),
+      value2 = value + randString();
+
+    Assert.ok(instance.add(key, value)); 
+    Assert.strictEqual(instance.get(key), value);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(!instance.cas(key, value2, 'zzz'));
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.LOGIC);
+    Assert.strictEqual(instance.get(key), value);
+  });
+  
+  it('set_bulk should work', function () {
+    var count = 1e3,
+      i,
+      values = {};
+
+    for (i = 0; i < count; i++) {
+      values[randString() + i] = randString();
+    }
+    Assert.strictEqual(instance.set_bulk(values), count);
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.count(), count);
+    Object.keys(values).forEach(function (key) {
+      Assert.strictEqual(instance.get(key), values[key]);
+    });
+  });
+  it('remove_bulk should work', function () {
+    var count = 1e3,
+      i,
+      values = {};
+
+    for (i = 0; i < count; i++) {
+      values[randString() + i] = randString();
+    }
+    Assert.strictEqual(instance.set_bulk(values), count);
+    Assert.strictEqual(count / 2, instance.remove_bulk(Object.keys(values).filter(function (key, i) {
+      return !(i % 2);
+    })));
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.count(), count / 2);
+  });
+  it('get_bulk should work', function () {
+   var count = 1e3,
+      i,
+      values = {},
+      keysToFetch,
+      fetchedValues;
+
+    for (i = 0; i < count; i++) {
+      values[randString() + i] = randString();
+    }
+    Assert.strictEqual(instance.set_bulk(values), count);
+    keysToFetch = Object.keys(values).filter(function (key, i) {
+      return !(i % 2);
+    });   
+    fetchedValues = instance.get_bulk(keysToFetch); 
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(fetchedValues instanceof Object);
+    Assert.strictEqual(Object.keys(fetchedValues).length, keysToFetch.length);
+    Assert.ok(keysToFetch.every(function (key) {
+      return fetchedValues[key] === values[key]; 
+    }));
+  });
+
+  it('should be impossible to begin transaction in transaction', function () {
+    Assert.ok(instance.begin_transaction());
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(!instance.begin_transaction_try());
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.LOGIC);
+    Assert.ok(instance.end_transaction(false));
+    Assert.ok(instance.begin_transaction());
+  });
+  it('reject transaction should reject transaction', function () {
+    var key1 = randString(),
+      key2 = randString(),
+      value1 = randString(),
+      value2 = randString();
+    
+    Assert.ok(instance.begin_transaction());
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(instance.set(key1, value1));  
+    Assert.ok(instance.set(key2, value2));  
+    Assert.ok(instance.end_transaction(false));
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.count(), 0);
+  });
+  it('commit transaction should commit transaction', function () {
+    var key1 = randString(),
+      key2 = randString(),
+      value1 = randString(),
+      value2 = randString();
+    
+    Assert.ok(instance.begin_transaction());
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(instance.set(key1, value1));  
+    Assert.ok(instance.set(key2, value2));  
+    Assert.ok(instance.end_transaction(true));
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.strictEqual(instance.count(), 2);
+    Assert.strictEqual(instance.get(key2), value2);
+    Assert.strictEqual(instance.get(key1), value1);
+  });
+  it('cursor should work', function () {
+    var cursor = instance.cursor();
+    Assert.strictEqual(instance.error().code, instance.ErrorCode.SUCCESS);
+    Assert.ok(cursor instanceof Object);
+  });
 };
+

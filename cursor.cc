@@ -21,7 +21,6 @@ NAN_METHOD(ExportCursor::JsConstructor) {
 }
 
 v8::Handle<v8::Function> ExportCursor::Init() {
-  NanScope();
   v8::Local<v8::FunctionTemplate> f_tpl = NanNew<v8::FunctionTemplate>(ExportCursor::JsConstructor);
   f_tpl->SetClassName(NanNew<v8::String>("Cursor"));
   f_tpl->InstanceTemplate()->SetInternalFieldCount(1);
