@@ -12,7 +12,8 @@
   },
   "targets": [{
       "target_name": "kyotonode",
-      "sources":  ["main.cc", "kyotocabinet"],
+      "sources":  ["src/main.cc", "kyotocabinet"],
+      "cflags": ["-I../node_modules/"],
       "cflags_cc!": ["-fno-exceptions"],
       "cflags!": ["-fno-exceptions"],
       "libraries": [

@@ -3,7 +3,7 @@
 
 #include <v8.h>
 
-#include "node_modules/nan/nan.h"
+#include <nan/nan.h>
 
 /**
  * Warning: To understand what is happening here

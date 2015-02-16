@@ -3,9 +3,10 @@
 
 #include <kcpolydb.h>
 
+#include <nan/nan.h>
+
 #include "export_to_v8.h"
 
-#include "node_modules/nan/nan.h"
 
 class ExportHashDB: public ExportToV8<kyotocabinet::HashDB> {
  public:

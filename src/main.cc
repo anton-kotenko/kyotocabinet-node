@@ -1,4 +1,4 @@
-#include "node_modules/nan/nan.h"
+#include <nan/nan.h>
 
 #include "poly_db.h"
 #include "hash_db.h"
