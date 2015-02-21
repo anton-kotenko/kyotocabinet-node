@@ -1,5 +1,7 @@
 #Node js bindings to [Kyoto Cabinet](http://fallabs.com/kyotocabinet/) database
 
+<img src="https://api.travis-ci.org/anton-kotenko/kyotocabinet-node.svg?branch=node-0.12-support"/>
+
 Implemented as sychronous wrapper over c++ library, trying to copy its interface (When it was possible). So documentaion is present here http://fallabs.com/kyotocabinet/spex.html and http://fallabs.com/kyotocabinet/api/.
 
 ##Dependencies
