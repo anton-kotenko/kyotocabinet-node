@@ -13,9 +13,11 @@
   "targets": [{
       "target_name": "kyotonode",
       "sources":  ["src/main.cc", "kyotocabinet"],
-      "cflags": ["-I../node_modules/"],
       "cflags_cc!": ["-fno-exceptions"],
       "cflags!": ["-fno-exceptions"],
+      "include_dirs" : [
+        "<!(node -e \"require('nan')\")"
+      ],
       "libraries": [
         "-l kyotocabinet"
       ]

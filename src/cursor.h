@@ -9,7 +9,7 @@
 
 #include <kcpolydb.h>
 
-#include <nan/nan.h>
+#include <nan.h>
 
 #include "tools.h"
 

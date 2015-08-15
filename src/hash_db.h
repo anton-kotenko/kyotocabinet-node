@@ -3,7 +3,7 @@
 
 #include <kcpolydb.h>
 
-#include <nan/nan.h>
+#include <nan.h>
 
 #include "export_to_v8.h"
 

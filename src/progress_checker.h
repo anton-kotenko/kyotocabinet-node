@@ -7,7 +7,7 @@
 
 #include <kcpolydb.h>
 
-#include <nan/nan.h>
+#include <nan.h>
 
 class StandartProgressChecker: public kyotocabinet::BasicDB::ProgressChecker {
  public:

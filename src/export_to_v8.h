@@ -5,7 +5,7 @@
 
 #include <node.h>
 
-#include <nan/nan.h>
+#include <nan.h>
 
 #include "cursor.h"
 

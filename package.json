@@ -25,7 +25,7 @@
     "nodejs": ">=v0.10.0" 
   },
   "dependencies": {
-    "nan": ">v1.6.0"
+    "nan": "1.9.0"
   },
   "devDependencies": {
     "mocha": ">=2.1.0"
