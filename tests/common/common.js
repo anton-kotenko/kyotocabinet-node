@@ -1,5 +1,10 @@
 var Assert = require('assert');
 var Os = require('os');
+if (!(Os.tmpdir instanceof Function)) {
+  Os.tmpdir = function () {
+    return '/tmp';
+  };
+}
 var Fs = require('fs');
 var module = require('../../');
 var randString = function () {

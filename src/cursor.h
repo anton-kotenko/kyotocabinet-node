@@ -39,7 +39,7 @@ class ExportCursor : public node::ObjectWrap {
   ~ExportCursor(); 
  friend class v8::FunctionTemplate;
  public: 
-  static v8::Handle<v8::Object> New (kyotocabinet::DB::Cursor * cursor, iRefable * parent_db);
+  static v8::Local<v8::Object> New (kyotocabinet::DB::Cursor * cursor, iRefable * parent_db);
   static NAN_METHOD(Set);
   static NAN_METHOD(Remove);
   static NAN_METHOD(GetKey);

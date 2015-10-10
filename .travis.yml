@@ -1,12 +1,27 @@
 language: node_js
 node_js:
-  - "0.12"
-  - "0.12.7"
+  - "0.8"
   - "0.10"
+  - "0.12"
   - "iojs"
-  - "iojs-v1.3"
+  - "4.0"
+  - "4.1"
+
+sudo: required
+
 before_install:
   - wget http://fallabs.com/kyotocabinet/pkg/kyotocabinet-1.2.76.tar.gz
   - tar -xzf kyotocabinet-1.2.76.tar.gz
   - cd kyotocabinet-1.2.76 && ./configure --libdir /usr/lib && make && sudo make -i install && cd ../
   - sudo ldconfig /usr/lib
+
+install:
+  - CXX=/usr/bin/g++-4.8 npm install --verbose
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-4.8
+    - g++-4.8
