@@ -6,16 +6,29 @@ Implemented as sychronous wrapper over c++ library, trying to copy its interface
 A lot of examples may be also found in [tests](https://github.com/anton-kotenko/kyotocabinet-node/blob/master/tests/common/common.js)
 
 ##Dependencies
-Kyotocabinet library with headers. (apt-get install libkyotocabinet-dev for Debian like OS's)
+Kyotocabinet library with headers. (apt-get install libkyotocabinet-dev for Debian like OS's) and compiler (tested with gcc 4.7.3 for nodejs <= v0.12.0 and gcc 4.8/4.9.3 for iojs v3.* and nodejs v4.*
 
 ##Engines
-  Works with nodejs-v0.10.*, nodejs-v0.12.* and iojs-v1.* 
+  Works with 
+  + nodejs-v0.8.*
+  + nodejs-v0.10.*
+  + nodejs-v0.12.*
+  + iojs-v3.*
+  + node-v4.*
 
 ##Usage
+```shell
+npm install kyotokabinet
+```
+or 
 ```shell
 npm install git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git
 ```
 or add
+```json
+"kyotocabinet": ">=0.2.1"
+```
+or
 ```json
 "kyotocabinet": "git+ssh://git@github.com:anton-kotenko/kyotocabinet-node.git",
 ```
