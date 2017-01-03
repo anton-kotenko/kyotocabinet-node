@@ -15,6 +15,7 @@ Kyotocabinet library with headers. (apt-get install libkyotocabinet-dev for Debi
   + nodejs-v0.12.*
   + iojs-v3.*
   + node-v4.*
+  + node-v6.*
 
 ##Usage
 ```shell
