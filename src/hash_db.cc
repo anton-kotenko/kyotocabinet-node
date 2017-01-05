@@ -20,7 +20,7 @@ void ExportHashDB::setCustomPrototype(v8::Local<v8::FunctionTemplate> tpl){
   Nan::SetPrototypeMethod(tpl, "tune_buckets", ExportHashDB::tune_buckets);
   Nan::SetPrototypeMethod(tpl, "tune_map", ExportHashDB::tune_map);
   Nan::SetPrototypeMethod(tpl, "tune_defrag", ExportHashDB::tune_defrag);
-  v8::Local<v8::Object> Option = Nan::New<v8::Object>();
+  v8::Local<v8::ObjectTemplate> Option = Nan::New<v8::ObjectTemplate>();
   Option->Set(Nan::New<v8::String>("TSMALL").ToLocalChecked(), Nan::New<v8::Int32>(kyotocabinet::HashDB::TSMALL));
   Option->Set(Nan::New<v8::String>("TLINEAR").ToLocalChecked(), Nan::New<v8::Int32>(kyotocabinet::HashDB::TLINEAR));
   Option->Set(Nan::New<v8::String>("TCOMPRESS").ToLocalChecked(), Nan::New<v8::Int32>(kyotocabinet::HashDB::TCOMPRESS));
