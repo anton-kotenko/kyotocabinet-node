@@ -16,6 +16,8 @@ Kyotocabinet library with headers. (apt-get install libkyotocabinet-dev for Debi
   + node-v4.*
   + node-v6.*
   + node-v7.*
+ 
+  Actually it should work even with nodejs-0.8.x but newer versions of test suite (mocha) are incompatible with nodejs-0.8 and older, so can not run tests for them.
 
 ##Usage
 ```shell
