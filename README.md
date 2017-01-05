@@ -10,12 +10,12 @@ Kyotocabinet library with headers. (apt-get install libkyotocabinet-dev for Debi
 
 ##Engines
   Works with 
-  + nodejs-v0.8.*
   + nodejs-v0.10.*
   + nodejs-v0.12.*
   + iojs-v3.*
   + node-v4.*
   + node-v6.*
+  + node-v7.*
 
 ##Usage
 ```shell

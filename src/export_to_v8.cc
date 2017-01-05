@@ -73,7 +73,7 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
 
   Nan::SetPrototypeMethod(tpl, "cursor", ExportToV8<T>::cursor);
 
-  v8::Local<v8::Object> OpenMode = Nan::New<v8::Object>();
+  v8::Local<v8::ObjectTemplate> OpenMode = Nan::New<v8::ObjectTemplate>();
   #define DECL_MODE(MODE) OpenMode->Set(\
     Nan::New<v8::String>(#MODE).ToLocalChecked(),\
     Nan::New<v8::Int32>(T::MODE)\
@@ -89,7 +89,8 @@ template <class T> void ExportToV8<T>::setDefaultPrototype(v8::Local<v8::Functio
   DECL_MODE(ONOREPAIR);
   #undef DECL_MODE
   tpl->PrototypeTemplate()->Set(Nan::New<v8::String>("OpenMode").ToLocalChecked(), OpenMode);
-  v8::Local<v8::Object> ErrorCode = Nan::New<v8::Object>();
+
+  v8::Local<v8::ObjectTemplate> ErrorCode = Nan::New<v8::ObjectTemplate>();
 
   #define DECL_ERROR_CODE(CODE) ErrorCode->Set(\
     Nan::New<v8::String>(#CODE).ToLocalChecked(),\
